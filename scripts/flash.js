@@ -1,28 +1,57 @@
-//Вызывает смену фона (вспышка)
-
-function doFlash(color = "green", count = 1, time = 200) {
-  const originalColor = document.body.style.backgroundColor || "";
-  let flashesDone = 0;
-
-  function flash() {
-    if (flashesDone >= count) {
-      // Восстановить оригинальный цвет и остановить
-      document.body.style.backgroundColor = originalColor;
-      return;
+//Мерцание
+function flashScreen(color = 'white', count = 1, duration = 200) {
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = color;
+    overlay.style.zIndex = '999999';
+    overlay.style.opacity = '0';
+    overlay.style.pointerEvents = 'none';
+    overlay.style.transition = `opacity ${duration / 1000}s ease-out`;
+    document.body.appendChild(overlay);
+    function flash(current) {
+        if (current >= count) {
+            // Завершаем и убираем оверлей
+            setTimeout(() => {
+                document.body.removeChild(overlay);
+            }, duration);
+            return;
+        }
+        // Мигаем: включаем
+        overlay.style.opacity = '0.8';
+        setTimeout(() => {
+            // Выключаем
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+                // Следующий цикл
+                flash(current + 1);
+            }, duration);
+        }, duration);
     }
-
-    // Меняем цвет на заданный
-    document.body.style.backgroundColor = color;
-
-    setTimeout(() => {
-      // Возвращаем оригинальный цвет
-      document.body.style.backgroundColor = originalColor;
-
-      flashesDone++;
-      // Задержка перед следующей вспышкой
-      setTimeout(flash, time);
-    }, time);
-  }
-
-  flash();
+    flash(0); // Запускаем с 0
 }
+
+
+
+
+//Открыть уведомления
+document.addEventListener('keydown', function(event) {
+	// Не работаем, если CTRL
+    if (event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+    }
+    
+    if (event.code === 'NumpadSubtract') {
+        event.preventDefault();
+        const notificationElement = document.querySelector('.--o-notification');
+        if (notificationElement) {
+            notificationElement.click();
+            flashScreen('green', 3, 300);
+        } else {
+        	flashScreen('red', 2, 200);
+        }
+    }
+});
