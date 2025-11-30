@@ -17,10 +17,10 @@ document.addEventListener('keydown', function(event) {
             notificationElement.click();
         }
     }
-    // Numpad+ Переход на страницу /crm/deal/
+    // Numpad+ Переход на страницу /crm/lead/list/
     else if (event.code === 'NumpadAdd') {
         event.preventDefault();
-        window.location.href = '/crm/deal/';
+        window.location.href = '/crm/lead/list/';
     }
     // Numpad* — чтение первого уведомления
     else if (event.code === 'NumpadMultiply') {
