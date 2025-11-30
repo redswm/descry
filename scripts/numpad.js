@@ -13,7 +13,7 @@ document.addEventListener('keydown', function(event) {
             notificationElement.click();
         }
     }
-    // Numpad* Переход на страницу /crm/deal/
+    // Numpad+ Переход на страницу /crm/deal/
     else if (event.code === 'NumpadMultiply') {
         event.preventDefault();
         window.location.href = '/crm/deal/';
