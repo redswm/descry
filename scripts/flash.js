@@ -34,24 +34,10 @@ function flashScreen(color = 'white', count = 1, duration = 200) {
     flash(0); // Запускаем с 0
 }
 
-
-
-
-//Открыть уведомления
-document.addEventListener('keydown', function(event) {
-	// Не работаем, если CTRL
-    if (event.ctrlKey || event.shiftKey || event.altKey) {
-        return;
-    }
-    
-    if (event.code === 'NumpadSubtract') {
-        event.preventDefault();
-        const notificationElement = document.querySelector('.--o-notification');
-        if (notificationElement) {
-            notificationElement.click();
-            flashScreen('green', 3, 300);
-        } else {
-        	flashScreen('red', 2, 200);
-        }
-    }
-});
+/*
+Примеры
+flashScreen ();
+flashScreen ('#FF9000', 3, 300);
+flashScreen ('green', 3, 300);
+flashScreen ('red', 2, 200);
+*/
