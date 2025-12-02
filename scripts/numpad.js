@@ -45,18 +45,16 @@ function cleanText (text) {
   // Удаляем подстроки вида [#12345]
   text = text.replace(/\[#\d+\]/g, '');
 
-  // Массив ненужных словосочетаний
+  // Массив нежелательных словосочетаний
   const unwantedPhrases = [
     "Задача от",
     "Со следующим текстом",
     "Добавил комментарий",
   ];
 
-  // Удаляем каждую фразу из текста
+  // Удаляем фразы
   for (const phrase of unwantedPhrases) {
-    // Экранируем специальные символы в фразе для безопасного использования в регулярке
     const escapedPhrase = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    // Удаляем все вхождения (с учётом возможных пробелов вокруг)
     const regex = new RegExp(escapedPhrase, 'g');
     text = text.replace(regex, '');
   }
@@ -69,9 +67,9 @@ function cleanText (text) {
 
 
 
-
+//Чтение первого уведомления или заголовка
 function readFirstNotification() {
-    // Останавливаем текущее чтение, если есть
+    // Останавливаем текущее чтение
     stopReading();
 
 	//Верхнее уведомление
@@ -82,18 +80,16 @@ function readFirstNotification() {
     	container = document.querySelector('#pagetitle');
     }
 
-
-	//Временно. Красим в желтый
     if (!container) return;
-		if (container) {
+	
+	//Временно. Красим в желтый
+	if (container) {
 	  container.style.color = 'yellow';
 	}
-    
 
     // Извлекаем весь текст, игнорируя скрытые или служебные элементы
     let text = container.innerText.trim();
     
-        
     //Удаляем лишнее
     text = cleanText(text);
     
@@ -107,9 +103,10 @@ function readFirstNotification() {
         isReading = true;
     };
     
+    
     utterance.onend = () => {
         isReading = false;
-        // Блокируем Esc ещё на 3 секунды после завершения
+        // Блокируем Esc (Не работает для Escape)
         readBlockTimeout = setTimeout(() => {
             readBlockTimeout = null;
         }, 100);
