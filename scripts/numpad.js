@@ -61,7 +61,7 @@ function cleanText (text) {
     text = text.replace(regex, '');
   }
 
-  // Опционально: убираем лишние пробелы
+  // Убираем лишние пробелы
   text = text.replace(/\s+/g, ' ').trim();
 
   return text;
