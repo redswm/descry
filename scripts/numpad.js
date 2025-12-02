@@ -268,4 +268,3 @@ function cleanupReadingUI() {
         currentReadingElement = null;
     }
 }
-
