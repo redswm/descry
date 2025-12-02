@@ -3,10 +3,49 @@ let isReading = false;
 let readBlockTimeout = null;
 let currentReadingElement = null;
 let isStopping = false;
+let allElements = []; // Массив всех доступных элементов для чтения
+let currentElementIndex = 0; // Текущий индекс в массиве
+
+// Собирает все доступные элементы для чтения в правильном порядке
+function collectElements() {
+    // 1. Все уведомления (в порядке появления)
+    const notifications = Array.from(
+        document.querySelectorAll('.bx-im-content-notification-item__content-container')
+    );
+    
+    // 2. Все сообщения мессенджера (в обратном порядке - новые снизу)
+    const messages = Array.from(
+        document.querySelectorAll('.bx-im-message-base__wrap')
+    ).reverse();
+    
+    // 3. Заголовок страницы
+    const pageTitle = document.querySelector('#pagetitle');
+    
+    // Формируем общий массив в порядке приоритета
+    allElements = [...notifications, ...messages];
+    if (pageTitle) allElements.push(pageTitle);
+    
+    return allElements;
+}
 
 // Слушатель событий для нажатия клавиш
 document.addEventListener('keydown', function (event) {
     if (event.ctrlKey) return;
+    
+    // Стрелка вниз - следующий элемент
+    if (event.code === 'ArrowDown') {
+        event.preventDefault();
+        navigateToElement(1);
+        return;
+    }
+    
+    // Стрелка вверх - предыдущий элемент
+    if (event.code === 'ArrowUp') {
+        event.preventDefault();
+        navigateToElement(-1);
+        return;
+    }
+    
     // Numpad- Открывает уведомления
     if (event.code === 'NumpadSubtract') {
         event.preventDefault();
@@ -26,10 +65,96 @@ document.addEventListener('keydown', function (event) {
         if (isReading) {
             stopReading();
         } else {
-            readFirstNotification();
+            // Собираем элементы и начинаем с первого
+            collectElements();
+            if (allElements.length > 0) {
+                currentElementIndex = 0;
+                readElementAtIndex(currentElementIndex);
+            }
         }
     }
 });
+
+// Навигация между элементами
+function navigateToElement(direction) {
+    if (isReading) stopReading();
+    
+    // Собираем актуальный список элементов
+    collectElements();
+    
+    if (allElements.length === 0) {
+        console.warn('Нет элементов для чтения');
+        return;
+    }
+    
+    // Вычисляем новый индекс с учетом границ массива
+    currentElementIndex += direction;
+    if (currentElementIndex < 0) currentElementIndex = 0;
+    if (currentElementIndex >= allElements.length) currentElementIndex = allElements.length - 1;
+    
+    readElementAtIndex(currentElementIndex);
+}
+
+// Чтение элемента по индексу
+function readElementAtIndex(index) {
+    stopReading(); // Останавливаем предыдущее чтение
+    
+    if (index < 0 || index >= allElements.length) return;
+    
+    const container = allElements[index];
+    if (!container) return;
+    
+    // Прокручиваем к элементу для визуальной обратной связи
+    container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
+    currentReadingElement = container;
+    container.classList.add('reading-glow');
+    
+    let text = container.innerText.trim();
+    text = cleanText(text);
+    
+    if (!text) {
+        cleanupReadingUI();
+        console.warn('Пустой элемент для чтения');
+        return;
+    }
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    
+    utterance.onstart = () => {
+        isReading = true;
+        isStopping = false;
+        copyClientEmail();
+    };
+    
+    utterance.onend = () => {
+        isReading = false;
+        readBlockTimeout = setTimeout(() => {
+            readBlockTimeout = null;
+        }, 100);
+        console.log(`Дочитал элемент ${index + 1} из ${allElements.length}`);
+    };
+    
+    utterance.onerror = (event) => {
+        if (!isStopping) {
+            console.error('Ошибка синтеза речи:', event.error);
+        }
+        isReading = false;
+        if (readBlockTimeout) clearTimeout(readBlockTimeout);
+        readBlockTimeout = null;
+    };
+    
+    utterance.onend = () => {
+        isReading = false;
+        cleanupReadingUI();
+        readBlockTimeout = setTimeout(() => {
+            readBlockTimeout = null;
+        }, 100);
+        console.log(`Дочитал элемент ${index + 1} из ${allElements.length}`);
+    };
+    
+    speechSynthesis.speak(utterance);
+}
 
 // Копирование Email клиента
 function copyClientEmail() {
@@ -125,68 +250,8 @@ function cleanText(text) {
     return text;
 }
 
-function readFirstNotification() {
-    stopReading(); // остановить предыдущее чтение
-
-	//Последнее уведомление (Уведомления)
-    let container = document.querySelector('.bx-im-content-notification-item__content-container');
-
-    // Если его нет, то последнее сообщение (Мессенджер)
-    if (!container) {
-        const containers = document.querySelectorAll('.bx-im-message-base__wrap');
-        container = containers.length > 0 ? containers[containers.length - 1] : null;
-    }
-    
-    // Если его нет, то заголовок страницы
-    if (!container) {
-        container = document.querySelector('#pagetitle');
-    }
-
-    if (!container) return;
-
-    currentReadingElement = container;
-    container.classList.add('reading-glow'); // включаем свечение
-
-    let text = container.innerText.trim();
-    text = cleanText(text);
-    if (!text) {
-        cleanupReadingUI();
-        return;
-    }
-
-    const utterance = new SpeechSynthesisUtterance(text);
-
-    utterance.onstart = () => {
-        isReading = true;
-        isStopping = false;
-        copyClientEmail ();
-    };
-
-    utterance.onend = () => {
-        isReading = false;
-        cleanupReadingUI();
-        readBlockTimeout = setTimeout(() => {
-            readBlockTimeout = null;
-        }, 100);
-        console.log('Дочитал');
-    };
-
-    utterance.onerror = (event) => {
-        // Проверяем, не была ли ошибка вызвана принудительной остановкой
-        if (!isStopping) {
-            console.error('Ошибка синтеза речи:', event.error);
-        }
-        isReading = false;
-        cleanupReadingUI();
-        if (readBlockTimeout) clearTimeout(readBlockTimeout);
-        readBlockTimeout = null;
-    };
-
-    speechSynthesis.speak(utterance);
-}
-
 function stopReading() {
-    isStopping = true; // Устанавливаем флаг остановки
+    isStopping = true;
     if (speechSynthesis.speaking) {
         speechSynthesis.cancel();
         isReading = false;
@@ -197,7 +262,6 @@ function stopReading() {
     }
 }
 
-
 function cleanupReadingUI() {
     if (currentReadingElement) {
         currentReadingElement.classList.remove('reading-glow');
@@ -205,14 +269,3 @@ function cleanupReadingUI() {
     }
 }
 
-// Добавляем CSS для свечения
-(function() {
-    const style = document.createElement('style');
-    style.textContent = `
-        .reading-glow {
-            text-shadow: 0 0 8px gold, 0 0 12px gold, 0 0 16px rgba(255, 215, 0, 0.7);
-            transition: text-shadow 0.3s ease;
-        }
-    `;
-    document.head.appendChild(style);
-})();
