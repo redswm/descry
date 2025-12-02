@@ -6,11 +6,7 @@ let isStopping = false;
 
 // Слушатель событий для нажатия клавиш
 document.addEventListener('keydown', function (event) {
-    // Игнорируем Ctrl
-    if (event.ctrlKey) {
-        return;
-    }
-
+    if (event.ctrlKey) return;
     // Numpad- Открывает уведомления
     if (event.code === 'NumpadSubtract') {
         event.preventDefault();
@@ -35,28 +31,20 @@ document.addEventListener('keydown', function (event) {
     }
 });
 
-
 // Копирование Email клиента
 function copyClientEmail() {
     const emailContainer = document.querySelector('div[data-cid="UF_CRM_EMAIL_HOME"]');
     if (!emailContainer) {
         return;
     }
-    
     const text = emailContainer.textContent.trim();
     if (!text) {
         return;
     }
-
     const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
     const emailMatch = text.match(emailRegex);
-    
-    if (!emailMatch) {
-        return;
-    }
-    
+    if (!emailMatch) return;
     const email = emailMatch[0].trim();
-
     // Копируем в буфер обмена
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(email)
@@ -69,7 +57,6 @@ function copyClientEmail() {
             });
     }
 }
-
 
 // Короткий звуковой сигнал "успешного копирования"
 function playSuccessSound() {
@@ -110,8 +97,6 @@ function playSuccessSound() {
     }
 }
 
-
-
 function cleanText(text) {
     // Удаляем подстроки вида [#12345]
     text = text.replace(/\[#\d+\]/g, '');
@@ -122,6 +107,9 @@ function cleanText(text) {
         'Со следующим текстом',
         'Добавил комментарий',
         'Уведомление Робот',
+        'https://',
+        'и ещё',
+        '1 человек(а)',
     ];
 
     // Удаляем фразы
@@ -136,8 +124,6 @@ function cleanText(text) {
 
     return text;
 }
-
-
 
 function readFirstNotification() {
     stopReading(); // остановить предыдущее чтение
@@ -210,6 +196,7 @@ function stopReading() {
         console.log('Чтение остановлено');
     }
 }
+
 
 function cleanupReadingUI() {
     if (currentReadingElement) {
