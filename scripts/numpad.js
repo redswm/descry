@@ -2,11 +2,11 @@
 let isReading = false;
 let readBlockTimeout = null;
 let currentReadingElement = null;
-let isStopping = false; // Флаг для отслеживания принудительной остановки
+let isStopping = false;
 
 // Слушатель событий для нажатия клавиш
 document.addEventListener('keydown', function (event) {
-    // Игнорируем только Ctrl (Alt и Shift не блокируем)
+    // Игнорируем Ctrl
     if (event.ctrlKey) {
         return;
     }
@@ -31,8 +31,6 @@ document.addEventListener('keydown', function (event) {
             stopReading();
         } else {
             readFirstNotification();
-            // Копируем email только после успешного чтения
-            setTimeout(copyClientEmail, 300);
         }
     }
 });
@@ -67,7 +65,6 @@ function copyClientEmail() {
                 playSuccessSound();
             })
             .catch(err => {
-                // Добавлен обработчик ошибок для логгирования
                 console.error('Ошибка копирования:', err);
             });
     }
@@ -124,6 +121,7 @@ function cleanText(text) {
         'Задача от',
         'Со следующим текстом',
         'Добавил комментарий',
+        'Уведомление Робот',
     ];
 
     // Удаляем фразы
@@ -144,15 +142,16 @@ function cleanText(text) {
 function readFirstNotification() {
     stopReading(); // остановить предыдущее чтение
 
+	//Последнее уведомление (Уведомления)
     let container = document.querySelector('.bx-im-content-notification-item__content-container');
 
-    // Если нет, то последнее сообщение (Мессенджер)
+    // Если его нет, то последнее сообщение (Мессенджер)
     if (!container) {
         const containers = document.querySelectorAll('.bx-im-message-base__wrap');
         container = containers.length > 0 ? containers[containers.length - 1] : null;
     }
     
-    // Если нет уведомления, то заголовок страницы
+    // Если его нет, то заголовок страницы
     if (!container) {
         container = document.querySelector('#pagetitle');
     }
@@ -173,7 +172,8 @@ function readFirstNotification() {
 
     utterance.onstart = () => {
         isReading = true;
-        isStopping = false; // Сбрасываем флаг остановки при начале чтения
+        isStopping = false;
+        copyClientEmail ();
     };
 
     utterance.onend = () => {
