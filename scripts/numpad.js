@@ -46,22 +46,19 @@ function initiateDeletion() {
 
     // Воспроизводим звук СРАЗУ
     stopReading();
-    playDeleteSound();
-        playDeleteSound();
+	playSound ();
 
 
     // Подсвечиваем
     deleteButton.classList.add('delete-highlight');
     isDeletePending = true;
 
-    // Запускаем таймер на 3 секунды
+    // Запускаем таймер на 2 секунды
     deleteTimeout = setTimeout(() => {
         deleteButton.click();
         cleanupDeletionUI();
-        playDeleteSound();
-        playDeleteSound();
-        playDeleteSound();
-    }, 3000);
+        playSound (800, 0.5, 250);
+    }, 2000);
 }
 
 function cancelPendingDeletion() {
@@ -106,6 +103,38 @@ function playDeleteSound() {
         console.warn('🔇 Не удалось воспроизвести звук удаления:', e);
     }
 }
+
+
+
+// Звук
+function playSound (freq=250, gain=0.5, plaingTime=500) {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const audioCtx = new AudioContext();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        oscillator.type = 'sine';
+        oscillator.frequency.value = freq;
+        gainNode.gain.value = gain;
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        oscillator.start();
+        gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + gain);
+
+        setTimeout(() => {
+            oscillator.stop();
+            oscillator.disconnect();
+            gainNode.disconnect();
+        }, plaingTime);
+    } catch (e) {
+        console.warn('🔇 Не удалось воспроизвести звук:', e);
+    }
+}
+
 
 // ========= ОСТАЛЬНОЙ КОД БЕЗ ИЗМЕНЕНИЙ =========
 
