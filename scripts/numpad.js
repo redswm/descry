@@ -15,7 +15,7 @@ document.addEventListener('keydown', function (event) {
 
     if (event.ctrlKey) return;
 
-    if (event.code === 'NumpadDivide') {
+    if (event.code === 'Backquote') {
         event.preventDefault();
         initiateDeletion();
     }
@@ -45,8 +45,8 @@ function initiateDeletion() {
     if (!deleteButton) return;
 
     // Воспроизводим звук СРАЗУ
-    stopReading();
-	playSound ();
+		stopReading();
+		playSound (780, 1, 1000);
 
 
     // Подсвечиваем
@@ -75,8 +75,8 @@ function cleanupDeletionUI() {
     isDeletePending = false;
 }
 
-// Звук удаления
-function playDeleteSound() {
+
+function playSound(freq = 250, gain = 0.5, durationMs = 500) {
     try {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         if (!AudioContext) return;
@@ -85,51 +85,26 @@ function playDeleteSound() {
 
         const oscillator = audioCtx.createOscillator();
         const gainNode = audioCtx.createGain();
-        oscillator.type = 'sine';
-        oscillator.frequency.value = 250;
-        gainNode.gain.value = 0.80;
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
 
-        oscillator.start();
-        gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.80);
-
-        setTimeout(() => {
-            oscillator.stop();
-            oscillator.disconnect();
-            gainNode.disconnect();
-        }, 400);
-    } catch (e) {
-        console.warn('🔇 Не удалось воспроизвести звук удаления:', e);
-    }
-}
-
-
-
-// Звук
-function playSound (freq=250, gain=0.5, plaingTime=500) {
-    try {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContext) return;
-        const audioCtx = new AudioContext();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-
-        const oscillator = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
         oscillator.type = 'sine';
         oscillator.frequency.value = freq;
-        gainNode.gain.value = gain;
+
+        // Устанавливаем начальное значение gain
+        gainNode.gain.setValueAtTime(gain, audioCtx.currentTime);
+        // Плавно уменьшаем до 0 за durationMs
+        gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + durationMs / 1000);
+
         oscillator.connect(gainNode);
         gainNode.connect(audioCtx.destination);
 
         oscillator.start();
-        gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + gain);
+        oscillator.stop(audioCtx.currentTime + durationMs / 1000);
 
-        setTimeout(() => {
-            oscillator.stop();
+        // Очистка после завершения
+        oscillator.onended = () => {
             oscillator.disconnect();
             gainNode.disconnect();
-        }, plaingTime);
+        };
     } catch (e) {
         console.warn('🔇 Не удалось воспроизвести звук:', e);
     }
