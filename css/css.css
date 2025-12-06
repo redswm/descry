@@ -1,0 +1,31 @@
+//Читаемый диктором текст
+.reading-glow {
+    text-shadow: 0 0 8px gold, 0 0 12px gold, 0 0 16px rgba(255, 215, 0, 0.7);
+}
+
+
+//Кнопки уведомлений
+.bx-im-content-notification-item__actions {
+	opacity: 1;
+}
+
+
+//Кнопка - Завершить сделку - Перекраска в бело-черный
+[data-id$=":WON"] .crm-entity-section-status-step-item-text {
+  border: 1px solid !important;
+  border-image: none !important;
+  background-color: white;
+  color: black;
+  font-size: 12px;
+  font-family: Arial, Verdana, Sans-Serif;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  
+}
+
+//Кнопки лаймового цвета (Успех) - Перекраска в бело-черный
+.ui-btn-success {
+	background-color: white;
+	color: black;
+}
