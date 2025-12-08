@@ -1,0 +1,17 @@
+//Кнопки Начать выполнение, Завершить
+.ui-btn-success, .ui-btn-success:hover,
+.task-more-button, .task-more-button:hover {
+	background: #000000;
+	color: #FFFFFF;
+	border: 0;
+}
+
+/*
+Скрытие ненужных кнопок
+Поток
+Колокольчик
+*/
+.tasks-flow__selector,
+.ui-icon-set__scope {
+	display: none;
+}
