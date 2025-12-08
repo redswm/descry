@@ -1,3 +1,41 @@
+//Уведомления - Кнопки
+.bx-im-content-notification-item__actions {
+	opacity: 1;
+}
+
+.bx-im-content-notification-item__actions-delete-button {
+	position: relative;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	line-height: 0;
+	width: 48px;
+    height: 48px;
+    //background: var(--im-notification-item-actions__background_delete-icon) no-repeat center;
+    background: none;
+	background-size: cover;
+}
+
+//×✖XXX✖×
+.bx-im-content-notification-item__actions-delete-button::after {
+	position: absolute;
+	font-size: 24px;
+    font-weight: bold;
+	content: 'XXX';
+}
+
+
+//Уведомления - Дополнительные действия (Отписаться, Прочитать)
+.bx-im-content-notification-item__actions-more-button {
+//	display: none;
+}
+
+//Читаемое сообщение
+.reading-glow {
+	box-shadow:0 0 20px #555;
+}
+
+
 //Читаемый диктором текст
 .reading-glow {
     text-shadow: 0 0 8px gold, 0 0 12px gold, 0 0 16px rgba(255, 215, 0, 0.7);
