@@ -3,11 +3,9 @@
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 document.addEventListener('keydown', async (event) => {
-  // event.code === 'Backquote' срабатывает на физической клавише ё/`/~/² независимо от языка
-  // !event.repeat защищает от многократного запуска при удержании клавиши
   if (event.code === 'Backquote' && !event.repeat) {
-    event.preventDefault(); // Блокируем ввод символа в поля
-
+    event.preventDefault();
+    
     // 1. Нажимаем на div с data-id="C12:WON"
     const div1 = document.querySelector('div[data-id="C12:WON"]');
     if (div1) div1.click();
