@@ -1,32 +1,34 @@
-//Завершает текущий лид
+function clickBySelector(sel, customError) {
+  var el = document.querySelector(sel);
+  if (!el) throw new Error(customError || 'Не найден: ' + sel);
+  el.click();
+}
 
-const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+function speak(text) {
+  var utter = new SpeechSynthesisUtterance(text);
+  utter.lang = 'ru-RU';
+  speechSynthesis.speak(utter);
+}
 
-document.addEventListener('keydown', async (event) => {
-  if (event.code === 'Backquote' && !event.repeat) {
-    event.preventDefault();
-    
-    // 1. Нажимаем на div с data-id="C12:WON"
-    const div1 = document.querySelector('div[data-id="C12:WON"]');
-    if (div1) div1.click();
+document.addEventListener('keydown', async function(e) {
+  if (e.code !== 'Backquote') return;
+  e.preventDefault();
+  speechSynthesis.cancel(); // Сброс очереди при новом нажатии
 
-    // 2. Ждем 3 секунды
-    await delay(3000);
-
-    // 3. Нажимаем на div с id apply_button_control
-    const div2 = document.getElementById('apply_button_control');
-    if (div2) div2.click();
-
-    // 4. Ждем 3 секунды
-    await delay(3000);
-
-    // 5. Нажимаем на button с классом won
-    const btnWon = document.querySelector('button.won');
-    if (btnWon) btnWon.click();
-
-    // 6. Запускаем функцию playsond()
-    if (typeof playsound === 'function') {
-      playSuccesSound ();
+  try {
+    clickBySelector('div[data-id="WON"]', 'Не найдена первая кнопка');
+    await new Promise(function(resolve) { setTimeout(resolve, 1250); });
+    clickBySelector('span.webform-small-button-text');
+    await new Promise(function(resolve) { setTimeout(resolve, 1250); });
+    clickBySelector('#intranet_binding_menu_crm_detail_top');
+    speak('Сделка удалена');
+  } catch (err) {
+    if (err.message === 'Не найдена первая кнопка') {
+      speak('Ошибка. Не найдена первая кнопка');
+    } else {
+    	speak('Ошибка');
     }
+    
+    console.error(err);
   }
 });
