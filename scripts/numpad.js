@@ -200,6 +200,8 @@ function readFirstNotification() {
 
     let text = container.innerText.trim();
     text = cleanText(text);
+
+	console.log (text);
     if (!text) {
         cleanupReadingUI();
         return;
