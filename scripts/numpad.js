@@ -190,6 +190,9 @@ function readFirstNotification() {
     if (!container) {
         container = document.querySelector('#pagetitle');
     }
+	if (!container) {
+        container = document.querySelector('textarea.b24-growing-text-area-edit');
+    }
     if (!container) return;
 
     currentReadingElement = container;
