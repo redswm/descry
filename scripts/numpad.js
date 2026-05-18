@@ -27,7 +27,6 @@ window.addEventListener('message', (e) => {
             readElementAtIndex(0);
         }
     }
-    // Сообщение для запуска последовательности ~ внутри iframe
     if (e.origin === window.location.origin && e.data && e.data.type === 'BITRIX_BACKQUOTE_COMMAND') {
         executeBackquoteSequence();
     }
@@ -39,32 +38,26 @@ window.addEventListener('message', (e) => {
 document.addEventListener('keydown', function (event) {
     if (event.ctrlKey) return;
 
-    // Стрелка вниз
     if (event.code === 'ArrowDown') {
         event.preventDefault();
         navigateToElement(1);
         return;
     }
-
-    // Стрелка вверх
     if (event.code === 'ArrowUp') {
         event.preventDefault();
         navigateToElement(-1);
         return;
     }
 
-    // Numpad- : Открыть уведомления
     if (event.code === 'NumpadSubtract') {
         event.preventDefault();
         const notificationElement = document.querySelector('.--o-notification');
         if (notificationElement) notificationElement.click();
     }
-    // Numpad+ : Переход в лиды
     else if (event.code === 'NumpadAdd') {
         event.preventDefault();
         window.location.href = '/crm/lead/list/';
     }
-    // Numpad* : Чтение / Остановка / Двойное нажатие для плеера
     else if (event.code === 'NumpadMultiply') {
         event.preventDefault();
         const now = Date.now();
@@ -91,7 +84,6 @@ document.addEventListener('keydown', function (event) {
     }
 });
 
-// Вынесена логика одиночного нажатия
 function executeSingleStarAction() {
     if (window.self === window.top) {
         const iframes = document.querySelectorAll('iframe');
@@ -107,10 +99,7 @@ function executeSingleStarAction() {
         }
 
         if (popupIframe) {
-            popupIframe.contentWindow.postMessage(
-                { type: 'BITRIX_READ_COMMAND' },
-                window.location.origin
-            );
+            popupIframe.contentWindow.postMessage({ type: 'BITRIX_READ_COMMAND' }, window.location.origin);
             popupIframe.focus();
             return;
         }
@@ -130,6 +119,24 @@ function executeSingleStarAction() {
 // ==========================================
 // 3. Основные функции чтения
 // ==========================================
+// Поиск элемента текущей стадии сделки
+function findActiveStageElement() {
+    // 1. Ищем по нашему классу выделения
+    let el = document.querySelector('.my-active-stage .crm-entity-section-status-step-item-text');
+    if (el) return el;
+    
+    // 2. Если класс ещё не навешен, ищем по совпадению текста с полем "Стадия" в карточке
+    const stageField = document.querySelector('div[data-cid="STAGE_ID"] .ui-entity-editor-content-block-text');
+    if (stageField) {
+        const stageText = stageField.innerText.trim();
+        const allStages = document.querySelectorAll('.crm-entity-section-status-step-item-text');
+        for (const s of allStages) {
+            if (s.innerText.trim() === stageText) return s;
+        }
+    }
+    return null;
+}
+
 function collectElements() {
     const notifications = Array.from(document.querySelectorAll('.bx-im-content-notification-item__content-container'));
     const messages = Array.from(document.querySelectorAll('.bx-im-message-base__wrap')).reverse();
@@ -137,6 +144,18 @@ function collectElements() {
 
     allElements = [...notifications, ...messages];
     if (pageTitle) allElements.push(pageTitle);
+    
+    // Вставляем стадию СРАЗУ ПОСЛЕ заголовка
+    const stageEl = findActiveStageElement();
+    if (stageEl) {
+        const titleIdx = allElements.indexOf(pageTitle);
+        if (titleIdx !== -1) {
+            allElements.splice(titleIdx + 1, 0, stageEl);
+        } else {
+            allElements.unshift(stageEl);
+        }
+    }
+    
     return allElements;
 }
 
@@ -306,7 +325,6 @@ document.addEventListener('keydown', async function(e) {
     if (e.code !== 'Backquote') return;
     e.preventDefault();
     
-    // Если мы в родительском окне → ищем iframe с #pagetitle и передаём команду
     if (window.self === window.top) {
         const iframes = document.querySelectorAll('iframe');
         let popupIframe = null;
@@ -319,25 +337,19 @@ document.addEventListener('keydown', async function(e) {
             } catch (e) { continue; }
         }
         if (popupIframe) {
-            popupIframe.contentWindow.postMessage(
-                { type: 'BITRIX_BACKQUOTE_COMMAND' },
-                window.location.origin
-            );
+            popupIframe.contentWindow.postMessage({ type: 'BITRIX_BACKQUOTE_COMMAND' }, window.location.origin);
             popupIframe.focus();
             return;
         }
     }
     
-    // Выполняем последовательность (в iframe или если iframe не найден)
     executeBackquoteSequence();
 });
 
-// Вынесенная функция последовательности для вызова из iframe
 async function executeBackquoteSequence() {
     speechSynthesis.cancel();
     cancelBackquoteSequence = false;
     
-    // Вешаем слушатель на любое нажатие клавиши для отмены
     backquoteKeyListener = (e) => {
         cancelBackquoteSequence = true;
         speak('Отменено');
@@ -346,11 +358,9 @@ async function executeBackquoteSequence() {
     document.addEventListener('keydown', backquoteKeyListener, { once: true });
     
     try {
-        // 1. Кнопка "Завершить сделку"
         clickBySelector('div[data-id="WON"]', 'FIRST_NOT_FOUND');
         speak('Удаляю');
         
-        // Ждём 3 секунды с возможностью отмены
         await new Promise((resolve) => {
             const checkInterval = setInterval(() => {
                 if (cancelBackquoteSequence) {
@@ -361,10 +371,9 @@ async function executeBackquoteSequence() {
             setTimeout(() => {
                 clearInterval(checkInterval);
                 resolve();
-            }, 5000);
+            }, 3000);
         });
         
-        // Если отменено — выходим
         if (cancelBackquoteSequence) {
             if (backquoteKeyListener) {
                 document.removeEventListener('keydown', backquoteKeyListener);
@@ -373,14 +382,10 @@ async function executeBackquoteSequence() {
             return;
         }
         
-        // 2. Кнопка "Сделка успешна"
-        clickBySelector('a.webform-small-button-decline');
-        
-        // 3. Кнопка перехода / закрытия
+        clickBySelector('span.webform-small-button-text');
         await new Promise(resolve => setTimeout(resolve, 1250));
-        clickBySelector('.popup-window-button-accept');
-        
-        speak('Лид удален');
+        clickBySelector('#intranet_binding_menu_crm_detail_top');
+        speak('Сделка удалена');
     } catch (err) {
         if (!cancelBackquoteSequence) {
             if (err.message === 'FIRST_NOT_FOUND') {
@@ -391,7 +396,6 @@ async function executeBackquoteSequence() {
             console.error(err);
         }
     } finally {
-        // Чистим слушатель отмены
         if (backquoteKeyListener) {
             document.removeEventListener('keydown', backquoteKeyListener);
             backquoteKeyListener = null;
@@ -399,3 +403,24 @@ async function executeBackquoteSequence() {
         cancelBackquoteSequence = false;
     }
 }
+
+
+
+// ==========================================
+// 7. Авто-выделение стадии при загрузке
+// ==========================================
+setTimeout(() => {
+    let stageId = null;
+    const scripts = document.querySelectorAll('script');
+    for (const s of scripts) {
+        if (s.textContent.includes('currentStepId')) {
+            const match = s.textContent.match(/currentStepId:\s*["']([^"']+)["']/);
+            if (match) { stageId = match[1]; break; }
+        }
+    }
+    
+    if (stageId) {
+        const el = document.querySelector(`.crm-entity-section-status-step[data-id="${stageId}"]`);
+        if (el) el.classList.add('my-active-stage');
+    }
+}, 1500);
