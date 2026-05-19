@@ -1,4 +1,12 @@
 # descry
+
+<h2>Установка</h2>
+
+1. Установить и активировать плагин User JavaScript and CSS https://chromewebstore.google.com/detail/user-javascript-and-css/nbhcbdghjpllgmfilhnhkllmkecfmpld
+2. Находясь на сайте bitrix24.ru нажать на кнопку плагина
+3. Добавить сайт Bitrix
+4. Слева - JS, Справа - CSS, Внизу выбрать кнопку - Все фреймы
+
 <h2>Список возможностей</h2>
 
 <ul>
@@ -25,5 +33,8 @@
     </ul>
   </li>
 </ul>
+
+<h2>Полезное</h2>
+<a href="https://chromewebstore.google.com/detail/chrome-extension-source-v/jifpbeccnghkjeaalbbjmodiffmgedin">Плагин Chrome для скачивания исходников плагинов</a>
 
 
