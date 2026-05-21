@@ -1,122 +1,426 @@
-.ui-page-slider-wrapper {
-    background: white !important;
+// Глобальные переменные для управления чтением
+let isReading = false;
+let readBlockTimeout = null;
+let currentReadingElement = null;
+let isStopping = false;
+let allElements = [];
+let currentElementIndex = 0;
+
+// Переменные для отслеживания одиночного/двойного нажатия
+let starPressTimer = null;
+let lastStarPressTime = 0;
+const DOUBLE_PRESS_THRESHOLD = 300;
+
+// Переменные для отмены последовательности ~
+let cancelBackquoteSequence = false;
+let backquoteKeyListener = null;
+
+// ==========================================
+// 1. Слушатель сообщений из родительского окна (для iframe)
+// ==========================================
+window.addEventListener('message', (e) => {
+    if (e.origin === window.location.origin && e.data && e.data.type === 'BITRIX_READ_COMMAND') {
+        if (isReading) stopReading();
+        collectElements();
+        if (allElements.length > 0) {
+            currentElementIndex = 0;
+            readElementAtIndex(0);
+        }
+    }
+    if (e.origin === window.location.origin && e.data && e.data.type === 'BITRIX_BACKQUOTE_COMMAND') {
+        executeBackquoteSequence();
+    }
+});
+
+// ==========================================
+// 2. Клавиатурные события (основные)
+// ==========================================
+document.addEventListener('keydown', function (event) {
+    if (event.ctrlKey) return;
+
+    if (event.code === 'ArrowDown') {
+        event.preventDefault();
+        navigateToElement(1);
+        return;
+    }
+    if (event.code === 'ArrowUp') {
+        event.preventDefault();
+        navigateToElement(-1);
+        return;
+    }
+
+    if (event.code === 'NumpadSubtract') {
+        event.preventDefault();
+        const notificationElement = document.querySelector('.--o-notification');
+        if (notificationElement) notificationElement.click();
+    }
+    else if (event.code === 'NumpadAdd') {
+        event.preventDefault();
+        window.location.href = '/crm/lead/list/';
+    }
+    else if (event.code === 'NumpadMultiply') {
+        event.preventDefault();
+        const now = Date.now();
+
+        if (starPressTimer && (now - lastStarPressTime) < DOUBLE_PRESS_THRESHOLD) {
+            clearTimeout(starPressTimer);
+            starPressTimer = null;
+            lastStarPressTime = 0;
+
+            const playerBtn = document.querySelector('.ui-btn-icon-start');
+            if (playerBtn) {
+                playerBtn.click();
+                return;
+            }
+            executeSingleStarAction();
+            return;
+        }
+
+        lastStarPressTime = now;
+        starPressTimer = setTimeout(() => {
+            starPressTimer = null;
+            executeSingleStarAction();
+        }, DOUBLE_PRESS_THRESHOLD);
+    }
+});
+
+function executeSingleStarAction() {
+    if (window.self === window.top) {
+        const iframes = document.querySelectorAll('iframe');
+        let popupIframe = null;
+
+        for (const iframe of iframes) {
+            try {
+                if (iframe.contentDocument && iframe.contentDocument.querySelector('#pagetitle')) {
+                    popupIframe = iframe;
+                    break;
+                }
+            } catch (e) { continue; }
+        }
+
+        if (popupIframe) {
+            popupIframe.contentWindow.postMessage({ type: 'BITRIX_READ_COMMAND' }, window.location.origin);
+            popupIframe.focus();
+            return;
+        }
+    }
+
+    if (isReading) {
+        stopReading();
+    } else {
+        collectElements();
+        if (allElements.length > 0) {
+            currentElementIndex = 0;
+            readElementAtIndex(currentElementIndex);
+        }
+    }
 }
 
-.crm-timeline__card-logo_icon.--call-play-record>i {
-    background: black !important;
-    position: relative;
-}
-.crm-timeline__card-logo_icon.--call-play-record>i::before{
-    /*content: "▶" !important;*/
-    font-size: 48px;
-    color: white !important;
-    display: block;
-    position: absolute;
-    left: 4px;
-    top: 4px;
-}
-
-
-.ui-btn-icon-phone-call {
-    width: 70px !important;
-    height: 70px !important;
-    background: black !important;
-    color: white !important;
-}
-
-/*Кружок уведомлений*/
-.bx-im-compact-navigation__icon:first-child {
-    background-color: red;
-    width: 50px;
-    height: 50px;
-border: 10px solid blue;
-}
-
-#pagetitle,
-.ui-toolbar-title-item {
-font-weight: 200 !important;
-}
-
-
-//Уведомления - Кнопки
-.bx-im-content-notification-item__actions {
-    opacity: 1;
-}
-.bx-im-content-notification-item__actions-delete-button {
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    line-height: 0;
-    width: 48px;
-    height: 48px;
-    //background: var(--im-notification-item-actions__background_delete-icon) no-repeat center;
-    background: none;
-    background-size: cover;
-}
-
-//×✖
-.bx-im-content-notification-item__actions-delete-button::after {
-    position: absolute;
-    font-size: 24px;
-    font-weight: bold;
-    content: 'XXX';
-}
-
-
-//Уведомления - Дополнительные действия (Отписаться, Прочитать)
-.bx-im-content-notification-item__actions-more-button {
-    display: none;
-}
-
-//Кнопка - Завершить сделку - Перекраска в бело-черный
-[data-id$=":WON"] .crm-entity-section-status-step-item-text {
-border: 1px solid !important;
-border-image: none !important;
-background-color: white;
-color: black;
-font-size: 12px;
-font-family: Arial, Verdana, Sans-Serif;
-font-weight: 700;
-display: flex;
-align-items: center;
-
-}
-
-.crm-entity-section-status-step-item-text,
-.popup-window-button-accept {
-    border: 1px solid !important;
-border-image: none !important;
-    background-color: black !important;
-    color: white !important;
-}
-
-/* Выделение текущей стадии: контур + двойная рамка + свечение */
-.my-active-stage .crm-entity-section-status-step-item-text {
-    position: relative !important;
-    z-index: 1000 !important; /* Поверх соседних стадий */
+// ==========================================
+// 3. Основные функции чтения
+// ==========================================
+// Поиск элемента текущей стадии сделки
+function findActiveStageElement() {
+    // 1. Ищем по нашему классу выделения
+    let el = document.querySelector('.my-active-stage .crm-entity-section-status-step-item-text');
+    if (el) return el;
     
-    /* drop-shadow обводит видимые пиксели элемента (стрелку), поэтому рамка не обрезается */
-    filter: drop-shadow(0 0 0 3px #00FFFF) drop-shadow(0 0 0 5px #000) !important;
+    // 2. Если класс ещё не навешен, ищем по совпадению текста с полем "Стадия" в карточке
+    const stageField = document.querySelector('div[data-cid="STAGE_ID"] .ui-entity-editor-content-block-text');
+    if (stageField) {
+        const stageText = stageField.innerText.trim();
+        const allStages = document.querySelectorAll('.crm-entity-section-status-step-item-text');
+        for (const s of allStages) {
+            if (s.innerText.trim() === stageText) return s;
+        }
+    }
+    return null;
+}
+
+function collectElements() {
+    const notifications = Array.from(document.querySelectorAll('.bx-im-content-notification-item__content-container'));
+    const messages = Array.from(document.querySelectorAll('.bx-im-message-base__wrap')).reverse();
+    const pageTitle = document.querySelector('#pagetitle');
+
+    allElements = [...notifications, ...messages];
+    if (pageTitle) allElements.push(pageTitle);
     
-    /* Внутренняя линия рамки */
-    outline: 2px solid #FFD700 !important;
-    outline-offset: -4px !important;
+    // Вставляем стадию СРАЗУ ПОСЛЕ заголовка
+    const stageEl = findActiveStageElement();
+    if (stageEl) {
+        const titleIdx = allElements.indexOf(pageTitle);
+        if (titleIdx !== -1) {
+            allElements.splice(titleIdx + 1, 0, stageEl);
+        } else {
+            allElements.unshift(stageEl);
+        }
+    }
     
-    /* Убираем конфликтующие стили */
-    border: none !important;
-    background-color: #000000 !important;
-    color: #FFFFFF !important;
-    text-shadow: 0 0 4px #00FFFF !important;
-    text-transform: uppercase !important;
+    return allElements;
+}
+
+function navigateToElement(direction) {
+    if (isReading) stopReading();
+    collectElements();
+
+    if (allElements.length === 0) {
+        console.warn('Нет элементов для чтения');
+        return;
+    }
+
+    currentElementIndex += direction;
+    if (currentElementIndex < 0) currentElementIndex = 0;
+    if (currentElementIndex >= allElements.length) currentElementIndex = allElements.length - 1;
+
+    readElementAtIndex(currentElementIndex);
+}
+
+function readElementAtIndex(index) {
+    stopReading();
+    if (index < 0 || index >= allElements.length) return;
+
+    const container = allElements[index];
+    if (!container) return;
+
+    currentReadingElement = container;
+    container.classList.add('reading-glow');
+
+    let text = container.innerText.trim();
+    text = cleanText(text);
+
+    if (!text) {
+        cleanupReadingUI();
+        console.warn('Пустой элемент для чтения');
+        return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(text);
+
+    utterance.onstart = () => {
+        isReading = true;
+        isStopping = false;
+        copyClientEmail();
+    };
+
+    utterance.onend = () => {
+        isReading = false;
+        cleanupReadingUI();
+        readBlockTimeout = setTimeout(() => { readBlockTimeout = null; }, 100);
+        console.log(`Дочитал элемент ${index + 1} из ${allElements.length}`);
+    };
+
+    utterance.onerror = (event) => {
+        if (!isStopping) console.error('Ошибка синтеза речи:', event.error);
+        isReading = false;
+        if (readBlockTimeout) clearTimeout(readBlockTimeout);
+        readBlockTimeout = null;
+        cleanupReadingUI();
+    };
+
+    speechSynthesis.speak(utterance);
+}
+
+// ==========================================
+// 4. Вспомогательные функции
+// ==========================================
+function copyClientEmail() {
+    const emailContainer = document.querySelector('div[data-cid="UF_CRM_EMAIL_HOME"]');
+    if (!emailContainer) return;
+
+    const text = emailContainer.textContent.trim();
+    if (!text) return;
+
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+    const emailMatch = text.match(emailRegex);
+    if (!emailMatch) return;
+
+    const email = emailMatch[0].trim();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(email)
+            .then(() => { console.log(`Email скопирован: ${email}`); playSuccessSound(); })
+            .catch(err => console.error('Ошибка копирования:', err));
+    }
+}
+
+function playSuccessSound() {
+    try {
+        if (typeof window.AudioContext !== 'undefined' || typeof window.webkitAudioContext !== 'undefined') {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            const audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.frequency.value = 800;
+            gainNode.gain.value = 0.1;
+            oscillator.start();
+            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.1);
+
+            setTimeout(() => {
+                oscillator.stop();
+                oscillator.disconnect();
+                gainNode.disconnect();
+            }, 100);
+        }
+    } catch (e) { console.warn('🔇 Не удалось воспроизвести звук:', e); }
+}
+
+function cleanText(text) {
+    text = text.replace(/\[#\d+\]/g, '');
+    const unwantedPhrases = [
+        'Задача от', 'Со следующим текстом', 'Добавил комментарий',
+        'Уведомление Робот', 'https://', 'и ещё', '1 человек(а)'
+    ];
+    for (const phrase of unwantedPhrases) {
+        const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        text = text.replace(new RegExp(escaped, 'g'), '');
+    }
+    return text.replace(/\s+/g, ' ').trim();
+}
+
+function stopReading() {
+    isStopping = true;
+    if (speechSynthesis.speaking) {
+        speechSynthesis.cancel();
+        isReading = false;
+        cleanupReadingUI();
+        if (readBlockTimeout) clearTimeout(readBlockTimeout);
+        readBlockTimeout = null;
+        console.log('Чтение остановлено');
+    }
+}
+
+function cleanupReadingUI() {
+    if (currentReadingElement) {
+        currentReadingElement.classList.remove('reading-glow');
+        currentReadingElement = null;
+    }
+}
+
+// ==========================================
+// 5. Новые функции для работы с кнопками и озвучкой
+// ==========================================
+function clickBySelector(sel, customError) {
+    var el = document.querySelector(sel);
+    if (!el) throw new Error(customError || 'Не найден: ' + sel);
+    el.click();
+}
+
+function speak(text) {
+    speechSynthesis.cancel();
+    var utter = new SpeechSynthesisUtterance(text);
+    utter.lang = 'ru-RU';
+    utter.rate = 1.0;
+    speechSynthesis.speak(utter);
+}
+
+// ==========================================
+// 6. Обработчик клавиши ~ (Backquote) — с поддержкой iframe и отменой
+// ==========================================
+document.addEventListener('keydown', async function(e) {
+    if (e.code !== 'Backquote') return;
+    e.preventDefault();
+    
+    if (window.self === window.top) {
+        const iframes = document.querySelectorAll('iframe');
+        let popupIframe = null;
+        for (const iframe of iframes) {
+            try {
+                if (iframe.contentDocument && iframe.contentDocument.querySelector('#pagetitle')) {
+                    popupIframe = iframe;
+                    break;
+                }
+            } catch (e) { continue; }
+        }
+        if (popupIframe) {
+            popupIframe.contentWindow.postMessage({ type: 'BITRIX_BACKQUOTE_COMMAND' }, window.location.origin);
+            popupIframe.focus();
+            return;
+        }
+    }
+    
+    executeBackquoteSequence();
+});
+
+async function executeBackquoteSequence() {
+    speechSynthesis.cancel();
+    cancelBackquoteSequence = false;
+    
+    backquoteKeyListener = (e) => {
+        cancelBackquoteSequence = true;
+        speak('Отменено');
+        console.log('Последовательность ~ отменена пользователем');
+    };
+    document.addEventListener('keydown', backquoteKeyListener, { once: true });
+    
+    try {
+        clickBySelector('div[data-id="JUNK"]', 'FIRST_NOT_FOUND');
+        speak('Удаляю');
+        
+        await new Promise((resolve) => {
+            const checkInterval = setInterval(() => {
+                if (cancelBackquoteSequence) {
+                    clearInterval(checkInterval);
+                    resolve();
+                }
+            }, 100);
+            setTimeout(() => {
+                clearInterval(checkInterval);
+                resolve();
+            }, 500);
+        });
+        
+        if (cancelBackquoteSequence) {
+            if (backquoteKeyListener) {
+                document.removeEventListener('keydown', backquoteKeyListener);
+                backquoteKeyListener = null;
+            }
+            return;
+        }
+        
+        clickBySelector('span.webform-small-button-text');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        clickBySelector('.popup-window-buttons button.popup-window-button-accept');
+        speak('Лид удален');
+    } catch (err) {
+        if (!cancelBackquoteSequence) {
+            if (err.message === 'FIRST_NOT_FOUND') {
+                speak('Не найдена первая кнопка');
+            } else {
+                speak('Ошибка');
+            }
+            console.error(err);
+        }
+    } finally {
+        if (backquoteKeyListener) {
+            document.removeEventListener('keydown', backquoteKeyListener);
+            backquoteKeyListener = null;
+        }
+        cancelBackquoteSequence = false;
+    }
 }
 
 
-//Кнопки лаймового цвета (Успех) - Перекраска в бело-черный
-.ui-btn-success {
-    background-color: black;
-    color: white;
-}
 
-
-
+// ==========================================
+// 7. Авто-выделение стадии при загрузке
+// ==========================================
+setTimeout(() => {
+    let stageId = null;
+    const scripts = document.querySelectorAll('script');
+    for (const s of scripts) {
+        if (s.textContent.includes('currentStepId')) {
+            const match = s.textContent.match(/currentStepId:\s*["']([^"']+)["']/);
+            if (match) { stageId = match[1]; break; }
+        }
+    }
+    
+    if (stageId) {
+        const el = document.querySelector(`.crm-entity-section-status-step[data-id="${stageId}"]`);
+        if (el) el.classList.add('my-active-stage');
+    }
+}, 1500);
