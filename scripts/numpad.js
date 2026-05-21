@@ -358,7 +358,7 @@ async function executeBackquoteSequence() {
     document.addEventListener('keydown', backquoteKeyListener, { once: true });
     
     try {
-        clickBySelector('div[data-id="WON"]', 'FIRST_NOT_FOUND');
+        clickBySelector('div[data-id="JUNK"]', 'FIRST_NOT_FOUND');
         speak('Удаляю');
         
         await new Promise((resolve) => {
@@ -371,7 +371,7 @@ async function executeBackquoteSequence() {
             setTimeout(() => {
                 clearInterval(checkInterval);
                 resolve();
-            }, 3000);
+            }, 500);
         });
         
         if (cancelBackquoteSequence) {
@@ -383,9 +383,9 @@ async function executeBackquoteSequence() {
         }
         
         clickBySelector('span.webform-small-button-text');
-        await new Promise(resolve => setTimeout(resolve, 1250));
-        clickBySelector('#intranet_binding_menu_crm_detail_top');
-        speak('Сделка удалена');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        clickBySelector('.popup-window-buttons button.popup-window-button-accept');
+        speak('Лид удален');
     } catch (err) {
         if (!cancelBackquoteSequence) {
             if (err.message === 'FIRST_NOT_FOUND') {
