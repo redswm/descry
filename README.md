@@ -10,7 +10,7 @@
 <h2>Список возможностей</h2>
 
 <ul>
-  <li>Numpad
+  <li>numpad.js
     <ul>
       <li>Numpad- Открывает Уведомления</li>
       <li>Numpad+ Открывает Лиды</li>
