@@ -38,6 +38,14 @@ window.addEventListener('message', (e) => {
 document.addEventListener('keydown', function (event) {
     if (event.ctrlKey) return;
 
+    // --- НОВАЯ ФУНКЦИЯ: Стрелка вправо -> [data-id="IN_PROCESS"] ---
+    if (event.code === 'ArrowRight') {
+        event.preventDefault();
+        handleInProcessAction();
+        return;
+    }
+    // -----------------------------------------------------
+
     if (event.code === 'ArrowDown') {
         event.preventDefault();
         navigateToElement(1);
@@ -83,6 +91,20 @@ document.addEventListener('keydown', function (event) {
         }, DOUBLE_PRESS_THRESHOLD);
     }
 });
+
+// --- НОВАЯ ФУНКЦИЯ: Логика обработки [data-id="IN_PROCESS"] ---
+function handleInProcessAction() {
+    // ИЗМЕНЕНО: используем data-атрибут вместо id
+    const btn = document.querySelector('[data-id="IN_PROCESS"]');
+    if (btn) {
+        btn.click();
+        playSuccessSound();
+        console.log('Кнопка [data-id="IN_PROCESS"] нажата');
+    } else {
+        console.log('Кнопка [data-id="IN_PROCESS"] не найдена на странице');
+    }
+}
+// ---------------------------------------------------
 
 function executeSingleStarAction() {
     if (window.self === window.top) {
