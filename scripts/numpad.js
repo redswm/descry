@@ -1,3 +1,4 @@
+// V 1.00 14.08.26
 // Глобальные переменные для управления чтением
 let isReading = false;
 let readBlockTimeout = null;
