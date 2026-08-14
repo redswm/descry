@@ -1,4 +1,4 @@
-// V 1.00 14.08.26
+// V 1.01 14.08.26
 // Глобальные переменные для управления чтением
 let isReading = false;
 let readBlockTimeout = null;
@@ -39,7 +39,7 @@ window.addEventListener('message', (e) => {
 document.addEventListener('keydown', function (event) {
     if (event.ctrlKey) return;
 
-    // --- НОВАЯ ФУНКЦИЯ: Стрелка вправо -> [data-id="IN_PROCESS"] ---
+    // --- ФУНКЦИЯ: Стрелка вправо -> [data-id="IN_PROCESS"] ---
     if (event.code === 'ArrowRight') {
         event.preventDefault();
         handleInProcessAction();
@@ -93,16 +93,40 @@ document.addEventListener('keydown', function (event) {
     }
 });
 
-// --- НОВАЯ ФУНКЦИЯ: Логика обработки [data-id="IN_PROCESS"] ---
+// --- ОБНОВЛЕННАЯ ФУНКЦИЯ: Логика обработки [data-id="IN_PROCESS"] ---
 function handleInProcessAction() {
-    // ИЗМЕНЕНО: используем data-атрибут вместо id
-    const btn = document.querySelector('[data-id="IN_PROCESS"]');
+    let btn = null;
+
+    // 1. Если мы уже внутри iframe, ищем кнопку в текущем документе
+    if (window.self !== window.top) {
+        btn = document.querySelector('[data-id="IN_PROCESS"]');
+    }
+
+    // 2. Если не нашли или мы в родительском окне — ищем внутри доступных iframe
+    if (!btn && window.self === window.top) {
+        const iframes = document.querySelectorAll('iframe');
+        for (const iframe of iframes) {
+            try {
+                if (iframe.contentDocument) {
+                    const foundBtn = iframe.contentDocument.querySelector('[data-id="IN_PROCESS"]');
+                    if (foundBtn) {
+                        btn = foundBtn;
+                        break;
+                    }
+                }
+            } catch (e) {
+                // Игнорируем cross-origin ошибки
+                continue;
+            }
+        }
+    }
+
     if (btn) {
         btn.click();
         playSuccessSound();
         console.log('Кнопка [data-id="IN_PROCESS"] нажата');
     } else {
-        console.log('Кнопка [data-id="IN_PROCESS"] не найдена на странице');
+        console.warn('Кнопка [data-id="IN_PROCESS"] не найдена на странице');
     }
 }
 // ---------------------------------------------------
@@ -147,7 +171,7 @@ function findActiveStageElement() {
     // 1. Ищем по нашему классу выделения
     let el = document.querySelector('.my-active-stage .crm-entity-section-status-step-item-text');
     if (el) return el;
-    
+
     // 2. Если класс ещё не навешен, ищем по совпадению текста с полем "Стадия" в карточке
     const stageField = document.querySelector('div[data-cid="STAGE_ID"] .ui-entity-editor-content-block-text');
     if (stageField) {
@@ -167,7 +191,7 @@ function collectElements() {
 
     allElements = [...notifications, ...messages];
     if (pageTitle) allElements.push(pageTitle);
-    
+
     // Вставляем стадию СРАЗУ ПОСЛЕ заголовка
     const stageEl = findActiveStageElement();
     if (stageEl) {
@@ -178,7 +202,7 @@ function collectElements() {
             allElements.unshift(stageEl);
         }
     }
-    
+
     return allElements;
 }
 
@@ -347,7 +371,7 @@ function speak(text) {
 document.addEventListener('keydown', async function(e) {
     if (e.code !== 'Backquote') return;
     e.preventDefault();
-    
+
     if (window.self === window.top) {
         const iframes = document.querySelectorAll('iframe');
         let popupIframe = null;
@@ -365,25 +389,25 @@ document.addEventListener('keydown', async function(e) {
             return;
         }
     }
-    
+
     executeBackquoteSequence();
 });
 
 async function executeBackquoteSequence() {
     speechSynthesis.cancel();
     cancelBackquoteSequence = false;
-    
+
     backquoteKeyListener = (e) => {
         cancelBackquoteSequence = true;
         speak('Отменено');
         console.log('Последовательность ~ отменена пользователем');
     };
     document.addEventListener('keydown', backquoteKeyListener, { once: true });
-    
+
     try {
         clickBySelector('div[data-id="JUNK"]', 'FIRST_NOT_FOUND');
         speak('Удаляю');
-        
+
         await new Promise((resolve) => {
             const checkInterval = setInterval(() => {
                 if (cancelBackquoteSequence) {
@@ -396,7 +420,7 @@ async function executeBackquoteSequence() {
                 resolve();
             }, 500);
         });
-        
+
         if (cancelBackquoteSequence) {
             if (backquoteKeyListener) {
                 document.removeEventListener('keydown', backquoteKeyListener);
@@ -404,7 +428,7 @@ async function executeBackquoteSequence() {
             }
             return;
         }
-        
+
         clickBySelector('span.webform-small-button-text');
         await new Promise(resolve => setTimeout(resolve, 500));
         clickBySelector('.popup-window-buttons button.popup-window-button-accept');
@@ -427,8 +451,6 @@ async function executeBackquoteSequence() {
     }
 }
 
-
-
 // ==========================================
 // 7. Авто-выделение стадии при загрузке
 // ==========================================
@@ -441,7 +463,7 @@ setTimeout(() => {
             if (match) { stageId = match[1]; break; }
         }
     }
-    
+
     if (stageId) {
         const el = document.querySelector(`.crm-entity-section-status-step[data-id="${stageId}"]`);
         if (el) el.classList.add('my-active-stage');
