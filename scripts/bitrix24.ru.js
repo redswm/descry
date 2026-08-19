@@ -1,4 +1,4 @@
-// V 1.04 19.08.26
+// V 1.05 19.08.26
 // Глобальные переменные для управления чтением
 let isReading = false;
 let readBlockTimeout = null;
@@ -22,13 +22,12 @@ let backquoteKeyListener = null;
 (function checkRedirectFlag() {
     if (sessionStorage.getItem('clickInfoTitleAfterRedirect') === 'true') {
         sessionStorage.removeItem('clickInfoTitleAfterRedirect');
-        
-        // Вместо фиксированной задержки в 1 сек, ждем появления элемента в DOM
+        // Ждем появления элемента в DOM (максимум 5 секунд), затем кликаем
         waitForElementAndClick('.crm-info-title-wrapper a', 5000);
     }
 })();
 
-// Функция ожидания появления элемента (решает проблему долгой загрузки Битрикс)
+// Функция ожидания появления элемента (решает проблему долгой загрузки списков в Б24)
 function waitForElementAndClick(selector, timeout) {
     const startTime = Date.now();
     const interval = setInterval(() => {
@@ -37,10 +36,11 @@ function waitForElementAndClick(selector, timeout) {
         if (link) {
             clearInterval(interval);
             
-            // Убираем target="_blank", чтобы браузер не блокировал клик как "всплывающее окно"
-            // Если нужно именно в новой вкладке - закомментируйте следующую строку, 
-            // но тогда Chrome может заблокировать переход после авто-редиректа.
-            link.removeAttribute('target'); 
+            // Принудительно меняем target, чтобы браузер не блокировал переход как "всплывающее окно"
+            // _top или _blank часто блокируются при автоматическом клике после загрузки страницы
+            if (link.getAttribute('target') === '_top' || link.getAttribute('target') === '_blank') {
+                link.setAttribute('target', '_self');
+            }
             
             link.click();
             playSuccessSound();
@@ -55,10 +55,12 @@ function waitForElementAndClick(selector, timeout) {
 // Универсальный поиск элемента (в текущем окне или в iframe)
 function findElementInDomOrIframe(selector) {
     let el = null;
-    if (window.self !== window.top) {
-        el = document.querySelector(selector);
-    }
-    if (!el && window.self === window.top) {
+    
+    // Сначала ищем в основном документе
+    el = document.querySelector(selector);
+    
+    // Если не нашли, ищем внутри iframe (частая ситуация в Битрикс24)
+    if (!el) {
         const iframes = document.querySelectorAll('iframe');
         for (const iframe of iframes) {
             try {
@@ -106,13 +108,13 @@ document.addEventListener('keydown', function (event) {
     }
     // -----------------------------------------------------
 
-    // --- ОБНОВЛЕННАЯ ФУНКЦИЯ: Стрелка вниз ---
+    // --- ОБНОВЛЕННАЯ ФУНКЦИЯ: Стрелка вниз -> клик по первой ссылке .crm-info-title-wrapper a ---
     if (event.code === 'ArrowDown') {
         event.preventDefault();
         handleInfoTitleLinkAction();
         return;
     }
-    // -----------------------------------------
+    // --------------------------------------------------------------------------------------------
 
     if (event.code === 'ArrowUp') {
         event.preventDefault();
@@ -170,17 +172,31 @@ function handleInProcessAction() {
 
 // --- ФУНКЦИЯ: Логика обработки ссылки .crm-info-title-wrapper a ---
 function handleInfoTitleLinkAction() {
-    const currentPath = window.location.pathname;
+    // Сначала пробуем найти ссылку прямо сейчас на текущей странице
+    let link = findElementInDomOrIframe('.crm-info-title-wrapper a');
+    
+    if (link) {
+        // Если ссылка уже есть в DOM, кликаем по ней сразу
+        if (link.getAttribute('target') === '_top' || link.getAttribute('target') === '_blank') {
+            link.setAttribute('target', '_self');
+        }
+        link.click();
+        playSuccessSound();
+        console.log('Ссылка на текущей странице нажата:', link.href);
+        return;
+    }
 
-    // Если текущая страница НЕ содержит "/crm/lead/"
+    // Если ссылки на текущей странице нет (например, мы в другом разделе), 
+    // переходим на список лидов и ставим флаг для клика после загрузки
+    const currentPath = window.location.pathname;
     if (!currentPath.includes('/crm/lead/')) {
-        console.log('Переход на страницу лидов...');
+        console.log('Ссылка не найдена. Переход на страницу списка лидов...');
         sessionStorage.setItem('clickInfoTitleAfterRedirect', 'true');
         window.location.href = '/crm/lead/list/';
         return;
     }
-
-    // Если мы уже на странице с "/crm/lead/", ищем и кликаем (тоже с ожиданием, вдруг еще грузится)
+    
+    // Если мы уже на /crm/lead/, но ссылка еще не прогрузилась — просто ждем её
     waitForElementAndClick('.crm-info-title-wrapper a', 5000);
 }
 
