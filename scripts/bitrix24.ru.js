@@ -1,4 +1,4 @@
-// V 1.05 19.08.26
+// V 1.06 19.08.26
 // Глобальные переменные для управления чтением
 let isReading = false;
 let readBlockTimeout = null;
@@ -37,7 +37,6 @@ function waitForElementAndClick(selector, timeout) {
             clearInterval(interval);
             
             // Принудительно меняем target, чтобы браузер не блокировал переход как "всплывающее окно"
-            // _top или _blank часто блокируются при автоматическом клике после загрузки страницы
             if (link.getAttribute('target') === '_top' || link.getAttribute('target') === '_blank') {
                 link.setAttribute('target', '_self');
             }
@@ -108,7 +107,7 @@ document.addEventListener('keydown', function (event) {
     }
     // -----------------------------------------------------
 
-    // --- ОБНОВЛЕННАЯ ФУНКЦИЯ: Стрелка вниз -> клик по первой ссылке .crm-info-title-wrapper a ---
+    // --- ФУНКЦИЯ: Стрелка вниз -> клик по первой ссылке .crm-info-title-wrapper a ---
     if (event.code === 'ArrowDown') {
         event.preventDefault();
         handleInfoTitleLinkAction();
@@ -116,11 +115,13 @@ document.addEventListener('keydown', function (event) {
     }
     // --------------------------------------------------------------------------------------------
 
+    // --- НОВАЯ ФУНКЦИЯ: Стрелка вверх -> клик по ссылке телефона ---
     if (event.code === 'ArrowUp') {
         event.preventDefault();
-        navigateToElement(-1);
+        handlePhoneNumberLinkAction();
         return;
     }
+    // ----------------------------------------------------------------
 
     if (event.code === 'NumpadSubtract') {
         event.preventDefault();
@@ -170,7 +171,7 @@ function handleInProcessAction() {
     }
 }
 
-// --- ФУНКЦИЯ: Логика обработки ссылки .crm-info-title-wrapper a ---
+// --- ФУНКЦИЯ: Логика обработки ссылки .crm-info-title-wrapper a (Стрелка вниз) ---
 function handleInfoTitleLinkAction() {
     // Сначала пробуем найти ссылку прямо сейчас на текущей странице
     let link = findElementInDomOrIframe('.crm-info-title-wrapper a');
@@ -198,6 +199,24 @@ function handleInfoTitleLinkAction() {
     
     // Если мы уже на /crm/lead/, но ссылка еще не прогрузилась — просто ждем её
     waitForElementAndClick('.crm-info-title-wrapper a', 5000);
+}
+
+// --- НОВАЯ ФУНКЦИЯ: Логика обработки ссылки телефона (Стрелка вверх) ---
+function handlePhoneNumberLinkAction() {
+    const selector = '.crm-entity-widget-content-block-mutlifield-value a.crm-entity-phone-number';
+    let link = findElementInDomOrIframe(selector);
+
+    if (link) {
+        // Убираем target="_top"/"_blank", чтобы избежать блокировки браузера
+        if (link.getAttribute('target') === '_top' || link.getAttribute('target') === '_blank') {
+            link.setAttribute('target', '_self');
+        }
+        link.click();
+        playSuccessSound();
+        console.log('Ссылка на телефон нажата:', link.href);
+    } else {
+        console.warn('Ссылка на телефон не найдена на странице');
+    }
 }
 
 function executeSingleStarAction() {
@@ -534,3 +553,4 @@ setTimeout(() => {
         if (el) el.classList.add('my-active-stage');
     }
 }, 1500);
+```
