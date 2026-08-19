@@ -1,4 +1,4 @@
-// V 1.02 19.08.26
+// V 1.03 19.08.26
 // Глобальные переменные для управления чтением
 let isReading = false;
 let readBlockTimeout = null;
@@ -15,6 +15,19 @@ const DOUBLE_PRESS_THRESHOLD = 300;
 // Переменные для отмены последовательности ~
 let cancelBackquoteSequence = false;
 let backquoteKeyListener = null;
+
+// ==========================================
+// 0. Проверка флага после редиректа (Стрелка вниз)
+// ==========================================
+(function checkRedirectFlag() {
+    if (sessionStorage.getItem('clickInfoTitleAfterRedirect') === 'true') {
+        sessionStorage.removeItem('clickInfoTitleAfterRedirect');
+        // Ждем 1 секунду после перехода, затем кликаем
+        setTimeout(() => {
+            clickInfoTitleLink();
+        }, 1000);
+    }
+})();
 
 // ==========================================
 // 1. Слушатель сообщений из родительского окна (для iframe)
@@ -47,7 +60,7 @@ document.addEventListener('keydown', function (event) {
     }
     // -----------------------------------------------------
 
-    // --- НОВАЯ ФУНКЦИЯ: Стрелка вниз -> клик по ссылке .crm-info-title-wrapper a ---
+    // --- ОБНОВЛЕННАЯ ФУНКЦИЯ: Стрелка вниз -> переход на /crm/lead/ или клик по ссылке ---
     if (event.code === 'ArrowDown') {
         event.preventDefault();
         handleInfoTitleLinkAction();
@@ -96,16 +109,14 @@ document.addEventListener('keydown', function (event) {
     }
 });
 
-// --- ОБНОВЛЕННАЯ ФУНКЦИЯ: Логика обработки [data-id="IN_PROCESS"] ---
+// --- ФУНКЦИЯ: Логика обработки [data-id="IN_PROCESS"] ---
 function handleInProcessAction() {
     let btn = null;
 
-    // 1. Если мы уже внутри iframe, ищем кнопку в текущем документе
     if (window.self !== window.top) {
         btn = document.querySelector('[data-id="IN_PROCESS"]');
     }
 
-    // 2. Если не нашли или мы в родительском окне — ищем внутри доступных iframe
     if (!btn && window.self === window.top) {
         const iframes = document.querySelectorAll('iframe');
         for (const iframe of iframes) {
@@ -118,7 +129,6 @@ function handleInProcessAction() {
                     }
                 }
             } catch (e) {
-                // Игнорируем cross-origin ошибки
                 continue;
             }
         }
@@ -133,11 +143,29 @@ function handleInProcessAction() {
     }
 }
 
-// --- НОВАЯ ФУНКЦИЯ: Логика обработки ссылки .crm-info-title-wrapper a ---
+// --- ОБНОВЛЕННАЯ ФУНКЦИЯ: Логика обработки ссылки .crm-info-title-wrapper a ---
 function handleInfoTitleLinkAction() {
+    const currentPath = window.location.pathname;
+
+    // Если текущая страница НЕ содержит "/crm/lead/"
+    if (!currentPath.includes('/crm/lead/')) {
+        console.log('Переход на страницу лидов...');
+        // Устанавливаем флаг, чтобы после загрузки новой страницы скрипт знал, что нужно кликнуть
+        sessionStorage.setItem('clickInfoTitleAfterRedirect', 'true');
+        // Переходим на страницу списка лидов
+        window.location.href = '/crm/lead/list/';
+        return;
+    }
+
+    // Если мы уже на странице с "/crm/lead/", кликаем сразу
+    clickInfoTitleLink();
+}
+
+// Вынесенная функция самого клика (используется сразу или после редиректа)
+function clickInfoTitleLink() {
     let link = null;
 
-    // 1. Если мы уже внутри iframe, ищем ссылку в текущем документе
+    // 1. Если мы внутри iframe, ищем в текущем документе
     if (window.self !== window.top) {
         link = document.querySelector('.crm-info-title-wrapper a');
     }
@@ -155,7 +183,6 @@ function handleInfoTitleLinkAction() {
                     }
                 }
             } catch (e) {
-                // Игнорируем cross-origin ошибки
                 continue;
             }
         }
@@ -206,13 +233,10 @@ function executeSingleStarAction() {
 // ==========================================
 // 3. Основные функции чтения
 // ==========================================
-// Поиск элемента текущей стадии сделки
 function findActiveStageElement() {
-    // 1. Ищем по нашему классу выделения
     let el = document.querySelector('.my-active-stage .crm-entity-section-status-step-item-text');
     if (el) return el;
 
-    // 2. Если класс ещё не навешен, ищем по совпадению текста с полем "Стадия" в карточке
     const stageField = document.querySelector('div[data-cid="STAGE_ID"] .ui-entity-editor-content-block-text');
     if (stageField) {
         const stageText = stageField.innerText.trim();
@@ -232,7 +256,6 @@ function collectElements() {
     allElements = [...notifications, ...messages];
     if (pageTitle) allElements.push(pageTitle);
 
-    // Вставляем стадию СРАЗУ ПОСЛЕ заголовка
     const stageEl = findActiveStageElement();
     if (stageEl) {
         const titleIdx = allElements.indexOf(pageTitle);
