@@ -1,4 +1,4 @@
-// V 1.01 14.08.26
+// V 1.02 19.08.26
 // Глобальные переменные для управления чтением
 let isReading = false;
 let readBlockTimeout = null;
@@ -47,11 +47,14 @@ document.addEventListener('keydown', function (event) {
     }
     // -----------------------------------------------------
 
+    // --- НОВАЯ ФУНКЦИЯ: Стрелка вниз -> клик по ссылке .crm-info-title-wrapper a ---
     if (event.code === 'ArrowDown') {
         event.preventDefault();
-        navigateToElement(1);
+        handleInfoTitleLinkAction();
         return;
     }
+    // -------------------------------------------------------------------------------
+
     if (event.code === 'ArrowUp') {
         event.preventDefault();
         navigateToElement(-1);
@@ -127,6 +130,43 @@ function handleInProcessAction() {
         console.log('Кнопка [data-id="IN_PROCESS"] нажата');
     } else {
         console.warn('Кнопка [data-id="IN_PROCESS"] не найдена на странице');
+    }
+}
+
+// --- НОВАЯ ФУНКЦИЯ: Логика обработки ссылки .crm-info-title-wrapper a ---
+function handleInfoTitleLinkAction() {
+    let link = null;
+
+    // 1. Если мы уже внутри iframe, ищем ссылку в текущем документе
+    if (window.self !== window.top) {
+        link = document.querySelector('.crm-info-title-wrapper a');
+    }
+
+    // 2. Если не нашли или мы в родительском окне — ищем внутри доступных iframe
+    if (!link && window.self === window.top) {
+        const iframes = document.querySelectorAll('iframe');
+        for (const iframe of iframes) {
+            try {
+                if (iframe.contentDocument) {
+                    const foundLink = iframe.contentDocument.querySelector('.crm-info-title-wrapper a');
+                    if (foundLink) {
+                        link = foundLink;
+                        break;
+                    }
+                }
+            } catch (e) {
+                // Игнорируем cross-origin ошибки
+                continue;
+            }
+        }
+    }
+
+    if (link) {
+        link.click();
+        playSuccessSound();
+        console.log('Ссылка .crm-info-title-wrapper a нажата');
+    } else {
+        console.warn('Ссылка .crm-info-title-wrapper a не найдена на странице');
     }
 }
 // ---------------------------------------------------
