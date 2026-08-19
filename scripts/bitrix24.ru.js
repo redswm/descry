@@ -1,4 +1,4 @@
-// V 1.03 19.08.26
+// V 1.04 19.08.26
 // Глобальные переменные для управления чтением
 let isReading = false;
 let readBlockTimeout = null;
@@ -22,12 +22,58 @@ let backquoteKeyListener = null;
 (function checkRedirectFlag() {
     if (sessionStorage.getItem('clickInfoTitleAfterRedirect') === 'true') {
         sessionStorage.removeItem('clickInfoTitleAfterRedirect');
-        // Ждем 1 секунду после перехода, затем кликаем
-        setTimeout(() => {
-            clickInfoTitleLink();
-        }, 1000);
+        
+        // Вместо фиксированной задержки в 1 сек, ждем появления элемента в DOM
+        waitForElementAndClick('.crm-info-title-wrapper a', 5000);
     }
 })();
+
+// Функция ожидания появления элемента (решает проблему долгой загрузки Битрикс)
+function waitForElementAndClick(selector, timeout) {
+    const startTime = Date.now();
+    const interval = setInterval(() => {
+        let link = findElementInDomOrIframe(selector);
+        
+        if (link) {
+            clearInterval(interval);
+            
+            // Убираем target="_blank", чтобы браузер не блокировал клик как "всплывающее окно"
+            // Если нужно именно в новой вкладке - закомментируйте следующую строку, 
+            // но тогда Chrome может заблокировать переход после авто-редиректа.
+            link.removeAttribute('target'); 
+            
+            link.click();
+            playSuccessSound();
+            console.log('Ссылка найдена и нажата:', link.href);
+        } else if (Date.now() - startTime > timeout) {
+            clearInterval(interval);
+            console.warn(`Элемент ${selector} не появился за ${timeout}мс`);
+        }
+    }, 200); // Проверяем каждые 200 миллисекунд
+}
+
+// Универсальный поиск элемента (в текущем окне или в iframe)
+function findElementInDomOrIframe(selector) {
+    let el = null;
+    if (window.self !== window.top) {
+        el = document.querySelector(selector);
+    }
+    if (!el && window.self === window.top) {
+        const iframes = document.querySelectorAll('iframe');
+        for (const iframe of iframes) {
+            try {
+                if (iframe.contentDocument) {
+                    const found = iframe.contentDocument.querySelector(selector);
+                    if (found) {
+                        el = found;
+                        break;
+                    }
+                }
+            } catch (e) { continue; }
+        }
+    }
+    return el;
+}
 
 // ==========================================
 // 1. Слушатель сообщений из родительского окна (для iframe)
@@ -60,13 +106,13 @@ document.addEventListener('keydown', function (event) {
     }
     // -----------------------------------------------------
 
-    // --- ОБНОВЛЕННАЯ ФУНКЦИЯ: Стрелка вниз -> переход на /crm/lead/ или клик по ссылке ---
+    // --- ОБНОВЛЕННАЯ ФУНКЦИЯ: Стрелка вниз ---
     if (event.code === 'ArrowDown') {
         event.preventDefault();
         handleInfoTitleLinkAction();
         return;
     }
-    // -------------------------------------------------------------------------------
+    // -----------------------------------------
 
     if (event.code === 'ArrowUp') {
         event.preventDefault();
@@ -111,28 +157,7 @@ document.addEventListener('keydown', function (event) {
 
 // --- ФУНКЦИЯ: Логика обработки [data-id="IN_PROCESS"] ---
 function handleInProcessAction() {
-    let btn = null;
-
-    if (window.self !== window.top) {
-        btn = document.querySelector('[data-id="IN_PROCESS"]');
-    }
-
-    if (!btn && window.self === window.top) {
-        const iframes = document.querySelectorAll('iframe');
-        for (const iframe of iframes) {
-            try {
-                if (iframe.contentDocument) {
-                    const foundBtn = iframe.contentDocument.querySelector('[data-id="IN_PROCESS"]');
-                    if (foundBtn) {
-                        btn = foundBtn;
-                        break;
-                    }
-                }
-            } catch (e) {
-                continue;
-            }
-        }
-    }
+    let btn = findElementInDomOrIframe('[data-id="IN_PROCESS"]');
 
     if (btn) {
         btn.click();
@@ -143,60 +168,21 @@ function handleInProcessAction() {
     }
 }
 
-// --- ОБНОВЛЕННАЯ ФУНКЦИЯ: Логика обработки ссылки .crm-info-title-wrapper a ---
+// --- ФУНКЦИЯ: Логика обработки ссылки .crm-info-title-wrapper a ---
 function handleInfoTitleLinkAction() {
     const currentPath = window.location.pathname;
 
     // Если текущая страница НЕ содержит "/crm/lead/"
     if (!currentPath.includes('/crm/lead/')) {
         console.log('Переход на страницу лидов...');
-        // Устанавливаем флаг, чтобы после загрузки новой страницы скрипт знал, что нужно кликнуть
         sessionStorage.setItem('clickInfoTitleAfterRedirect', 'true');
-        // Переходим на страницу списка лидов
         window.location.href = '/crm/lead/list/';
         return;
     }
 
-    // Если мы уже на странице с "/crm/lead/", кликаем сразу
-    clickInfoTitleLink();
+    // Если мы уже на странице с "/crm/lead/", ищем и кликаем (тоже с ожиданием, вдруг еще грузится)
+    waitForElementAndClick('.crm-info-title-wrapper a', 5000);
 }
-
-// Вынесенная функция самого клика (используется сразу или после редиректа)
-function clickInfoTitleLink() {
-    let link = null;
-
-    // 1. Если мы внутри iframe, ищем в текущем документе
-    if (window.self !== window.top) {
-        link = document.querySelector('.crm-info-title-wrapper a');
-    }
-
-    // 2. Если не нашли или мы в родительском окне — ищем внутри доступных iframe
-    if (!link && window.self === window.top) {
-        const iframes = document.querySelectorAll('iframe');
-        for (const iframe of iframes) {
-            try {
-                if (iframe.contentDocument) {
-                    const foundLink = iframe.contentDocument.querySelector('.crm-info-title-wrapper a');
-                    if (foundLink) {
-                        link = foundLink;
-                        break;
-                    }
-                }
-            } catch (e) {
-                continue;
-            }
-        }
-    }
-
-    if (link) {
-        link.click();
-        playSuccessSound();
-        console.log('Ссылка .crm-info-title-wrapper a нажата');
-    } else {
-        console.warn('Ссылка .crm-info-title-wrapper a не найдена на странице');
-    }
-}
-// ---------------------------------------------------
 
 function executeSingleStarAction() {
     if (window.self === window.top) {
